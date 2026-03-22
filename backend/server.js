@@ -550,6 +550,4 @@ app.get("/avanslar", async (req, res) => {
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 console.log("JWT_EXPIRES_IN:", process.env.JWT_EXPIRES_IN);
 
-app.listen(5001, () => {
-  console.log("SERVER 5001 CALISIYOR 🚀");
-});
+
