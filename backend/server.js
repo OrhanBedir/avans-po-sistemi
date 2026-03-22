@@ -16,8 +16,12 @@ app.get("/test-db", async (req, res) => {
     const result = await pool.query("SELECT NOW()");
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("DB error");
+    console.error("DB TEST ERROR:", err);
+    res.status(500).json({
+      message: "DB error",
+      error: err.message,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
   }
 });
 
