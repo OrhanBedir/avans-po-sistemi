@@ -25,6 +25,95 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
+app.post("/api/avanslar", async (req, res) => {
+  try {
+    const {
+      personel_ad_soyad,
+      unvan,
+      gider_turu,
+      tutar,
+      para_birimi,
+      bolge,
+      proje,
+      aciklama,
+      iban,
+      hesap_adi,
+      talep_tarihi,
+    } = req.body;
+
+    if (!personel_ad_soyad || !gider_turu || !tutar) {
+      return res.status(400).json({
+        message: "personel_ad_soyad, gider_turu ve tutar zorunludur",
+      });
+    }
+
+    const query = `
+      INSERT INTO avanslar (
+        personel_ad_soyad,
+        unvan,
+        gider_turu,
+        tutar,
+        para_birimi,
+        bolge,
+        proje,
+        aciklama,
+        iban,
+        hesap_adi,
+        talep_tarihi
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::timestamp, NOW())
+      )
+      RETURNING *;
+    `;
+
+    const values = [
+      personel_ad_soyad,
+      unvan || null,
+      gider_turu,
+      tutar,
+      para_birimi || "TRY",
+      bolge || null,
+      proje || null,
+      aciklama || null,
+      iban || null,
+      hesap_adi || null,
+      talep_tarihi || null,
+    ];
+
+    const result = await pool.query(query, values);
+
+    res.status(201).json({
+      message: "Avans kaydı oluşturuldu",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    console.error("AVANS INSERT ERROR:", err);
+    res.status(500).json({
+      message: "Avans kaydı oluşturulamadı",
+      error: err.message,
+    });
+  }
+});
+
+app.get("/api/avanslar", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT *
+      FROM avanslar
+      ORDER BY id DESC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("AVANS LIST ERROR:", err);
+    res.status(500).json({
+      message: "Avans listesi alınamadı",
+      error: err.message,
+    });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
