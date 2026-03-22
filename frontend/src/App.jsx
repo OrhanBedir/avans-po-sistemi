@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
-const API = "https://avans-po-sistemi-production.up.railway.app";
+const API = "https://avans-po-sistemi-production.up.railway.app"
 
 const PERSONELLER = [
   {
