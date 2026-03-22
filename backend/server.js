@@ -11,6 +11,40 @@ app.use(express.json());
 
 const pool = require("./db");
 
+app.get("/create-table", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS avanslar (
+        id SERIAL PRIMARY KEY,
+        talep_tarihi TIMESTAMP DEFAULT NOW(),
+        personel_ad_soyad VARCHAR(255) NOT NULL,
+        unvan VARCHAR(255),
+        gider_turu VARCHAR(255) NOT NULL,
+        tutar NUMERIC(12,2) NOT NULL,
+        para_birimi VARCHAR(10) DEFAULT 'TRY',
+        bolge VARCHAR(100),
+        proje VARCHAR(100),
+        aciklama TEXT,
+        iban VARCHAR(50),
+        hesap_adi VARCHAR(255),
+        talep_durumu VARCHAR(50) DEFAULT 'BEKLIYOR',
+        odeme_durumu VARCHAR(50) DEFAULT 'BEKLEMEDE',
+        onaylayan VARCHAR(255),
+        onay_tarihi TIMESTAMP,
+        red_nedeni TEXT,
+        odeme_tarihi TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    res.send("Table created!");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
+
 app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -646,6 +680,8 @@ app.get("/avanslar", async (req, res) => {
     return res.status(500).json({ message: "Sunucu hatası" });
   }
 });
+
+
 
 // =========================
 // SERVER
