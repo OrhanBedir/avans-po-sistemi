@@ -21,6 +21,29 @@ app.get("/", (req, res) => {
 // =========================
 // DB TEST
 // =========================
+app.get("/fix-table", async (req, res) => {
+  try {
+    await pool.query(`
+      ALTER TABLE avanslar
+      ADD COLUMN IF NOT EXISTS olusturan_kullanici VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS olusturan_rol VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS rollout_onay VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS rollout_tarih TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS proje_mudur_onay VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS proje_mudur_tarih TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS direktor_onay VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS direktor_tarih TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS muhasebe_onay VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS muhasebe_tarih TIMESTAMP;
+    `);
+
+    res.send("Table fixed!");
+  } catch (err) {
+    console.error("FIX TABLE ERROR:", err);
+    res.status(500).send(err.message);
+  }
+});
+
 app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
