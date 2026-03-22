@@ -9,7 +9,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-//const pool = require("./db");
+const pool = require("./db");
+
+app.get("/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("DB error");
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 
