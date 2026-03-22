@@ -378,7 +378,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/login`, {
+      const res = await fetch(`${API}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -489,62 +489,11 @@ function App() {
     }
   };
 
-  const handleAvansEkle = async (e) => {
-    e.preventDefault();
-    setMesaj("");
-
-    if (!personel || !tutar || !giderTipi) {
-      setMesaj("Lütfen zorunlu alanları doldur.");
-      return;
-    }
-
-    if (!manuelGiris && !talepTarihi) {
-      setMesaj("Talep tarihi boş olamaz.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API}/api/avanslar`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          talep_tarihi: talepTarihi
-            ? new Date(`${talepTarihi}T12:00:00`)
-            : new Date(),
-          personel_ad_soyad: personel,
-          unvan,
-          gider_turu: giderTipi,
-          tutar: Number(tutar),
-          para_birimi: "TRY",
-          bolge,
-          proje,
-          iban,
-          hesap_adi: hesapAdi,
-          aciklama,
-          olusturan_kullanici: user.username,
-          olusturan_rol: user.rol,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMesaj(data.message || "Kayıt sırasında hata oluştu.");
-        return;
-      }
-
-      setMesaj(data.message || "Avans oluşturuldu");
-      temizleForm();
-      avanslariGetir();
-    } catch (err) {
-      console.error(err);
-      setMesaj("Server bağlantı hatası");
-    }
-  };
+  
 
   const guncelle = async (id, durum) => {
     try {
-      const res = await fetch(`${API}/avanslar/${id}`, {
+      const res = await fetch(`${API}/api/avanslar/${id}`, {
         method: "PUT",
         headers: authHeaders,
         body: JSON.stringify({
@@ -632,7 +581,7 @@ function App() {
     }
 
     try {
-      const res = await fetch(`${API}/avanslar/toplu-onay`, {
+      const res = await fetch(`${API}/api/avanslar/toplu-onay`, {
         method: "PUT",
         headers: authHeaders,
         body: JSON.stringify({
