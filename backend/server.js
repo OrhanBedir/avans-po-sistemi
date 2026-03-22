@@ -13,12 +13,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+app.get("/", (req, res) => {
+  res.send("API calisiyor");
 });
 
-app.get("/", (req, res) => {
-  res.send("API çalışıyor 🚀");
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Server running on port " + PORT);
 });
 
 // =========================
@@ -549,5 +549,3 @@ app.get("/avanslar", async (req, res) => {
 // =========================
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 console.log("JWT_EXPIRES_IN:", process.env.JWT_EXPIRES_IN);
-
-
