@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:5001";
+const API_URL = "https://avans-po-sistemi-production.up.railway.app";
 
 const PERSONELLER = [
   {
@@ -1182,6 +1183,45 @@ function App() {
       </div>
     );
   }
+
+  const handleAvansKaydet = async (e) => {
+    e.preventDefault();
+
+    try {
+      const payload = {
+        personel_ad_soyad: form.personel_ad_soyad,
+        unvan: form.unvan,
+        gider_turu: form.gider_turu,
+        tutar: Number(form.tutar),
+        para_birimi: form.para_birimi || "TRY",
+        bolge: form.bolge,
+        proje: form.proje,
+        aciklama: form.aciklama,
+        iban: form.iban,
+        hesap_adi: form.hesap_adi,
+        talep_tarihi: form.talep_tarihi || null,
+      };
+
+      const response = await fetch(`${API_URL}/api/avanslar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Kayıt başarısız");
+      }
+
+      alert("Avans kaydı oluşturuldu");
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    }
+  };
 
   return (
     <div style={styles.page}>
