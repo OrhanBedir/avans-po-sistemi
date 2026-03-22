@@ -11,6 +11,33 @@ app.use(express.json());
 
 const pool = require("./db");
 
+// =========================
+// TEMEL ROUTE
+// =========================
+app.get("/", (req, res) => {
+  res.send("API calisiyor");
+});
+
+// =========================
+// DB TEST
+// =========================
+app.get("/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("DB TEST ERROR:", err);
+    res.status(500).json({
+      message: "DB error",
+      error: err.message,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
+  }
+});
+
+// =========================
+// TABLO OLUŞTUR
+// =========================
 app.get("/create-table", async (req, res) => {
   try {
     await pool.query(`
@@ -27,12 +54,27 @@ app.get("/create-table", async (req, res) => {
         aciklama TEXT,
         iban VARCHAR(50),
         hesap_adi VARCHAR(255),
-        talep_durumu VARCHAR(50) DEFAULT 'BEKLIYOR',
+
+        talep_durumu VARCHAR(50) DEFAULT 'ROLLOUT_ONAY',
         odeme_durumu VARCHAR(50) DEFAULT 'BEKLEMEDE',
+
         onaylayan VARCHAR(255),
         onay_tarihi TIMESTAMP,
         red_nedeni TEXT,
         odeme_tarihi TIMESTAMP,
+
+        rollout_onay VARCHAR(255),
+        rollout_tarih TIMESTAMP,
+        proje_mudur_onay VARCHAR(255),
+        proje_mudur_tarih TIMESTAMP,
+        direktor_onay VARCHAR(255),
+        direktor_tarih TIMESTAMP,
+        muhasebe_onay VARCHAR(255),
+        muhasebe_tarih TIMESTAMP,
+
+        olusturan_kullanici VARCHAR(255),
+        olusturan_rol VARCHAR(100),
+
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
@@ -40,122 +82,9 @@ app.get("/create-table", async (req, res) => {
 
     res.send("Table created!");
   } catch (err) {
-    console.error(err);
+    console.error("CREATE TABLE ERROR:", err);
     res.status(500).send(err.message);
   }
-});
-
-app.get("/test-db", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json(result.rows);
-  } catch (err) {
-    console.error("DB TEST ERROR:", err);
-    res.status(500).json({
-      message: "DB error",
-      error: err.message,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-    });
-  }
-});
-
-app.post("/api/avanslar", async (req, res) => {
-  try {
-    const {
-      personel_ad_soyad,
-      unvan,
-      gider_turu,
-      tutar,
-      para_birimi,
-      bolge,
-      proje,
-      aciklama,
-      iban,
-      hesap_adi,
-      talep_tarihi,
-    } = req.body;
-
-    if (!personel_ad_soyad || !gider_turu || !tutar) {
-      return res.status(400).json({
-        message: "personel_ad_soyad, gider_turu ve tutar zorunludur",
-      });
-    }
-
-    const query = `
-      INSERT INTO avanslar (
-        personel_ad_soyad,
-        unvan,
-        gider_turu,
-        tutar,
-        para_birimi,
-        bolge,
-        proje,
-        aciklama,
-        iban,
-        hesap_adi,
-        talep_tarihi
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::timestamp, NOW())
-      )
-      RETURNING *;
-    `;
-
-    const values = [
-      personel_ad_soyad,
-      unvan || null,
-      gider_turu,
-      tutar,
-      para_birimi || "TRY",
-      bolge || null,
-      proje || null,
-      aciklama || null,
-      iban || null,
-      hesap_adi || null,
-      talep_tarihi || null,
-    ];
-
-    const result = await pool.query(query, values);
-
-    res.status(201).json({
-      message: "Avans kaydı oluşturuldu",
-      data: result.rows[0],
-    });
-  } catch (err) {
-    console.error("AVANS INSERT ERROR:", err);
-    res.status(500).json({
-      message: "Avans kaydı oluşturulamadı",
-      error: err.message,
-    });
-  }
-});
-
-app.get("/api/avanslar", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT *
-      FROM avanslar
-      ORDER BY id DESC
-    `);
-
-    res.json(result.rows);
-  } catch (err) {
-    console.error("AVANS LIST ERROR:", err);
-    res.status(500).json({
-      message: "Avans listesi alınamadı",
-      error: err.message,
-    });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => {
-  res.send("API calisiyor");
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("Server running on port " + PORT);
 });
 
 // =========================
@@ -171,7 +100,7 @@ function generateToken(user) {
     process.env.JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRES_IN || "1d",
-    },
+    }
   );
 }
 
@@ -292,91 +221,226 @@ app.post("/login", (req, res) => {
 // =========================
 // AVANS EKLE
 // =========================
-// İstersen bunu authMiddleware ile koruyabilirsin:
-// app.post("/avanslar", authMiddleware, (req, res) => {
-app.post("/avanslar", (req, res) => {
-  const {
-    talep_tarihi,
-    personel_ad_soyad,
-    unvan,
-    gider_turu,
-    tutar,
-    para_birimi,
-    bolge,
-    proje,
-    iban,
-    hesap_adi,
-    aciklama,
-    olusturan_kullanici,
-    olusturan_rol,
-  } = req.body;
+app.post("/avanslar", async (req, res) => {
+  try {
+    const {
+      talep_tarihi,
+      personel_ad_soyad,
+      unvan,
+      gider_turu,
+      tutar,
+      para_birimi,
+      bolge,
+      proje,
+      iban,
+      hesap_adi,
+      aciklama,
+      olusturan_kullanici,
+      olusturan_rol,
+    } = req.body;
 
-  let ilkDurum = "ROLLOUT_ONAY";
+    if (!personel_ad_soyad || !gider_turu || !tutar) {
+      return res.status(400).json({
+        message: "personel_ad_soyad, gider_turu ve tutar zorunludur",
+      });
+    }
 
-  if (olusturan_rol === "ROLLOUT_MANAGER") {
-    ilkDurum = "ROLLOUT_ONAY";
-  } else if (olusturan_rol === "BOLGE_MUDURU") {
-    ilkDurum = "PROJE_MUDURU_ONAY";
-  } else if (olusturan_rol === "PROJE_MUDURU") {
-    ilkDurum = "DIREKTOR_ONAY";
-  } else if (olusturan_rol === "PROJE_DIREKTORU") {
-    ilkDurum = "MUHASEBE_ONAY";
+    let ilkDurum = "ROLLOUT_ONAY";
+
+    if (olusturan_rol === "ROLLOUT_MANAGER") {
+      ilkDurum = "ROLLOUT_ONAY";
+    } else if (olusturan_rol === "BOLGE_MUDURU") {
+      ilkDurum = "PROJE_MUDURU_ONAY";
+    } else if (olusturan_rol === "PROJE_MUDURU") {
+      ilkDurum = "DIREKTOR_ONAY";
+    } else if (olusturan_rol === "PROJE_DIREKTORU") {
+      ilkDurum = "MUHASEBE_ONAY";
+    }
+
+    const query = `
+      INSERT INTO avanslar (
+        talep_tarihi,
+        personel_ad_soyad,
+        unvan,
+        gider_turu,
+        tutar,
+        para_birimi,
+        bolge,
+        proje,
+        iban,
+        hesap_adi,
+        aciklama,
+        olusturan_kullanici,
+        olusturan_rol,
+        talep_durumu,
+        odeme_durumu
+      )
+      VALUES (
+        COALESCE($1::timestamp, NOW()),
+        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'BEKLEMEDE'
+      )
+      RETURNING *;
+    `;
+
+    const values = [
+      talep_tarihi || null,
+      personel_ad_soyad,
+      unvan || null,
+      gider_turu,
+      Number(tutar),
+      para_birimi || "TRY",
+      bolge || null,
+      proje || null,
+      iban || null,
+      hesap_adi || null,
+      aciklama || null,
+      olusturan_kullanici || null,
+      olusturan_rol || null,
+      ilkDurum,
+    ];
+
+    const result = await pool.query(query, values);
+
+    return res.json({
+      message: "Avans oluşturuldu",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    console.error("POST /avanslar hatası:", err);
+    return res.status(500).json({
+      message: "Sunucu hatası",
+      error: err.message,
+    });
   }
+});
 
-  const yeniAvans = {
-    id: idCounter++,
+// =========================
+// API AVANS EKLE
+// =========================
+app.post("/api/avanslar", async (req, res) => {
+  try {
+    const {
+      personel_ad_soyad,
+      unvan,
+      gider_turu,
+      tutar,
+      para_birimi,
+      bolge,
+      proje,
+      aciklama,
+      iban,
+      hesap_adi,
+      talep_tarihi,
+      olusturan_kullanici,
+      olusturan_rol,
+    } = req.body;
 
-    talep_tarihi: talep_tarihi || new Date(),
-    personel_ad_soyad,
-    unvan,
-    gider_turu,
-    tutar,
-    para_birimi: para_birimi || "TRY",
+    if (!personel_ad_soyad || !gider_turu || !tutar) {
+      return res.status(400).json({
+        message: "personel_ad_soyad, gider_turu ve tutar zorunludur",
+      });
+    }
 
-    talep_durumu: ilkDurum,
+    let ilkDurum = "ROLLOUT_ONAY";
 
-    odeme_durumu: "ODEME_BEKLEMIYOR",
+    if (olusturan_rol === "ROLLOUT_MANAGER") {
+      ilkDurum = "ROLLOUT_ONAY";
+    } else if (olusturan_rol === "BOLGE_MUDURU") {
+      ilkDurum = "PROJE_MUDURU_ONAY";
+    } else if (olusturan_rol === "PROJE_MUDURU") {
+      ilkDurum = "DIREKTOR_ONAY";
+    } else if (olusturan_rol === "PROJE_DIREKTORU") {
+      ilkDurum = "MUHASEBE_ONAY";
+    }
 
-    onaylayan: "",
-    onay_tarihi: null,
-    ret_nedeni: "",
-    odeme_tarihi: null,
+    const query = `
+      INSERT INTO avanslar (
+        talep_tarihi,
+        personel_ad_soyad,
+        unvan,
+        gider_turu,
+        tutar,
+        para_birimi,
+        bolge,
+        proje,
+        aciklama,
+        iban,
+        hesap_adi,
+        talep_durumu,
+        odeme_durumu,
+        olusturan_kullanici,
+        olusturan_rol,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        COALESCE($1::timestamp, NOW()),
+        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'BEKLEMEDE', $13, $14, NOW(), NOW()
+      )
+      RETURNING *;
+    `;
 
-    rollout_onay: null,
-    rollout_tarih: null,
-    proje_mudur_onay: null,
-    proje_mudur_tarih: null,
-    direktor_onay: null,
-    direktor_tarih: null,
+    const values = [
+      talep_tarihi || null,
+      personel_ad_soyad,
+      unvan || null,
+      gider_turu,
+      Number(tutar),
+      para_birimi || "TRY",
+      bolge || null,
+      proje || null,
+      aciklama || null,
+      iban || null,
+      hesap_adi || null,
+      ilkDurum,
+      olusturan_kullanici || null,
+      olusturan_rol || null,
+    ];
 
-    muhasebe_onay: null,
-    muhasebe_tarih: null,
+    const result = await pool.query(query, values);
 
-    bolge,
-    proje,
-    iban,
-    hesap_adi,
-    aciklama,
-
-    olusturan_kullanici,
-    olusturan_rol,
-
-    tarih: new Date(),
-  };
-
-  if (ilkDurum === "ONAYLANDI") {
-    yeniAvans.onaylayan = olusturan_kullanici || "Sistem";
-    yeniAvans.onay_tarihi = new Date();
-    yeniAvans.direktor_onay = olusturan_kullanici || "Sistem";
-    yeniAvans.direktor_tarih = new Date();
+    return res.status(201).json({
+      message: "Avans kaydı oluşturuldu",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    console.error("AVANS INSERT ERROR:", err);
+    return res.status(500).json({
+      message: "Avans kaydı oluşturulamadı",
+      error: err.message,
+    });
   }
+});
 
-  avanslar.unshift(yeniAvans);
+// =========================
+// AVANS LİSTE
+// =========================
+app.get("/avanslar", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM avanslar ORDER BY id DESC");
+    return res.json(result.rows);
+  } catch (err) {
+    console.error("GET /avanslar hatası:", err);
+    return res.status(500).json({ message: "Sunucu hatası" });
+  }
+});
 
-  return res.json({
-    message: "Avans oluşturuldu",
-    data: yeniAvans,
-  });
+app.get("/api/avanslar", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT *
+      FROM avanslar
+      ORDER BY id DESC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("AVANS LIST ERROR:", err);
+    res.status(500).json({
+      message: "Avans listesi alınamadı",
+      error: err.message,
+    });
+  }
 });
 
 // =========================
@@ -421,10 +485,11 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                rollout_tarih = NOW(),
                talep_durumu = 'PROJE_MUDURU_ONAY',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
       } else if (
         avans.talep_durumu === "PROJE_MUDURU_ONAY" &&
@@ -436,10 +501,11 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                proje_mudur_tarih = NOW(),
                talep_durumu = 'DIREKTOR_ONAY',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
       } else if (
         avans.talep_durumu === "DIREKTOR_ONAY" &&
@@ -451,10 +517,11 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                direktor_tarih = NOW(),
                talep_durumu = 'MUHASEBE_ONAY',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
       } else if (avans.talep_durumu === "MUHASEBE_ONAY" && rol === "MUHASEBE") {
         result = await pool.query(
@@ -463,10 +530,11 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                muhasebe_tarih = NOW(),
                talep_durumu = 'ONAYLANDI',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
       } else {
         atlananlar.push({
@@ -495,7 +563,6 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
 // =========================
 // TEKİL GÜNCELLEME
 // =========================
-
 app.put("/avanslar/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -525,10 +592,11 @@ app.put("/avanslar/:id", async (req, res) => {
                rollout_tarih = NOW(),
                talep_durumu = 'PROJE_MUDURU_ONAY',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -543,10 +611,11 @@ app.put("/avanslar/:id", async (req, res) => {
                proje_mudur_tarih = NOW(),
                talep_durumu = 'DIREKTOR_ONAY',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -558,10 +627,11 @@ app.put("/avanslar/:id", async (req, res) => {
                direktor_tarih = NOW(),
                talep_durumu = 'MUHASEBE_ONAY',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -573,10 +643,11 @@ app.put("/avanslar/:id", async (req, res) => {
                muhasebe_tarih = NOW(),
                talep_durumu = 'ONAYLANDI',
                onaylayan = $1,
-               onay_tarihi = NOW()
+               onay_tarihi = NOW(),
+               updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id],
+          [username, id]
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -599,10 +670,11 @@ app.put("/avanslar/:id", async (req, res) => {
         `UPDATE avanslar
          SET odeme_tarihi = NOW(),
              talep_durumu = 'ODENDI',
-             odeme_durumu = 'ODENDI'
+             odeme_durumu = 'ODENDI',
+             updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
-        [id],
+        [id]
       );
 
       return res.json({ message: "Ödeme yapıldı", data: result.rows[0] });
@@ -612,12 +684,13 @@ app.put("/avanslar/:id", async (req, res) => {
       const result = await pool.query(
         `UPDATE avanslar
          SET talep_durumu = 'REDDEDILDI',
-             ret_nedeni = 'Reddedildi',
+             red_nedeni = 'Reddedildi',
              onaylayan = $1,
-             onay_tarihi = NOW()
+             onay_tarihi = NOW(),
+             updated_at = NOW()
          WHERE id = $2
          RETURNING *`,
-        [username, id],
+        [username, id]
       );
 
       return res.json({ message: "Güncellendi", data: result.rows[0] });
@@ -633,7 +706,6 @@ app.put("/avanslar/:id", async (req, res) => {
 // =========================
 // SİLME
 // =========================
-// app.delete("/avanslar/:id", authMiddleware, (req, res) => {
 app.delete("/avanslar/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -668,23 +740,24 @@ app.delete("/avanslar/:id", async (req, res) => {
 });
 
 // =========================
-// AVANS LİSTE
+// MAIL TESTER / PLACEHOLDER
 // =========================
-// app.get("/avanslar", authMiddleware, (req, res) => {
-app.get("/avanslar", async (req, res) => {
+app.get("/mail-test", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM avanslar ORDER BY id DESC");
-    return res.json(result.rows);
+    return res.json({ message: "Mail servisi hazir" });
   } catch (err) {
-    console.error("GET /avanslar hatası:", err);
-    return res.status(500).json({ message: "Sunucu hatası" });
+    return res.status(500).json({ message: "Mail test hatasi" });
   }
 });
-
-
 
 // =========================
 // SERVER
 // =========================
+const PORT = process.env.PORT || 3000;
+
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
 console.log("JWT_EXPIRES_IN:", process.env.JWT_EXPIRES_IN);
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Server running on port " + PORT);
+});

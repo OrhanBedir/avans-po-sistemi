@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
-const API = "https://avans-po-sistemi-production.up.railway.app";
+const API = "http://127.0.0.1:5001";
 
 const PERSONELLER = [
   {
@@ -158,7 +158,8 @@ const getDurumBadgeStyle = (durum) => {
     durum === "ROLLOUT_ONAY" ||
     durum === "PROJE_MUDURU_ONAY" ||
     durum === "DIREKTOR_ONAY" ||
-    durum === "MUHASEBE_ONAY"
+    durum === "MUHASEBE_ONAY" ||
+    durum === "BEKLIYOR"
   ) {
     return {
       background: "#FEF3C7",
@@ -230,7 +231,6 @@ function App() {
   const [aciklama, setAciklama] = useState("");
 
   const [hoveredId, setHoveredId] = useState(null);
-
   const [selectedIds, setSelectedIds] = useState([]);
 
   const rol = user?.rol ?? "";
@@ -241,13 +241,6 @@ function App() {
   };
 
   const talepAcabilir = rol !== "MUHASEBE";
-
-  const onayYapabilir =
-    rol === "ROLLOUT_MANAGER" ||
-    rol === "PROJE_MUDURU" ||
-    rol === "PROJE_DIREKTORU" ||
-    rol === "BOLGE_MUDURU" ||
-    rol === "MUHASEBE";
 
   const tumListeyiGorebilir = true;
 
@@ -314,14 +307,22 @@ function App() {
     const durum = getItemDurum(item);
     getItemOdemeDurumu(item);
 
-    if (durum === "ROLLOUT_ONAY")
+    if (durum === "ROLLOUT_ONAY") {
       return "Rollout / Bölge Müdürü Onayı Bekliyor";
-    if (durum === "PROJE_MUDURU_ONAY") return "Proje Müdürü Onayı Bekliyor";
-    if (durum === "DIREKTOR_ONAY") return "Proje Direktörü Onayı Bekliyor";
-    if (durum === "MUHASEBE_ONAY") return "Muhasebe Onayı Bekliyor";
+    }
+    if (durum === "PROJE_MUDURU_ONAY") {
+      return "Proje Müdürü Onayı Bekliyor";
+    }
+    if (durum === "DIREKTOR_ONAY") {
+      return "Proje Direktörü Onayı Bekliyor";
+    }
+    if (durum === "MUHASEBE_ONAY") {
+      return "Muhasebe Onayı Bekliyor";
+    }
     if (durum === "ONAYLANDI") return "Onaylandı";
     if (durum === "ODENDI") return "Ödendi";
     if (durum === "REDDEDILDI") return "Reddedildi";
+    if (durum === "BEKLIYOR") return "Bekliyor";
 
     return durum || "-";
   };
@@ -378,7 +379,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/api/login`, {
+      const res = await fetch(`${API}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -468,15 +469,15 @@ function App() {
           iban,
           hesap_adi: hesapAdi,
           aciklama,
-          olusturan_kullanici: user.username,
-          olusturan_rol: user.rol,
+          olusturan_kullanici: user?.username || "",
+          olusturan_rol: user?.rol || "",
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setMesaj(data.message || "Kayıt sırasında hata oluştu.");
+        setMesaj(data.error ? `${data.message} - ${data.error}` : (data.message || "Kayıt sırasında hata oluştu."));
         return;
       }
 
@@ -489,11 +490,9 @@ function App() {
     }
   };
 
-  
-
   const guncelle = async (id, durum) => {
     try {
-      const res = await fetch(`${API}/api/avanslar/${id}`, {
+      const res = await fetch(`${API}/avanslar/${id}`, {
         method: "PUT",
         headers: authHeaders,
         body: JSON.stringify({
@@ -532,7 +531,7 @@ function App() {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
           },
-        },
+        }
       );
 
       const data = await res.json();
@@ -552,7 +551,7 @@ function App() {
 
   const toggleSelected = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
@@ -581,7 +580,7 @@ function App() {
     }
 
     try {
-      const res = await fetch(`${API}/api/avanslar/toplu-onay`, {
+      const res = await fetch(`${API}/avanslar/toplu-onay`, {
         method: "PUT",
         headers: authHeaders,
         body: JSON.stringify({
@@ -672,7 +671,7 @@ function App() {
 
   const filtreToplamTutar = filtrelenmisTumListe.reduce(
     (toplam, item) => toplam + Number(item.tutar || 0),
-    0,
+    0
   );
 
   const excelIndir = async () => {
@@ -880,7 +879,7 @@ function App() {
       });
 
       const durumColIndex = worksheet.columns.findIndex(
-        (c) => c.key === "talep_durumu",
+        (c) => c.key === "talep_durumu"
       );
 
       if (durumColIndex >= 0) {
@@ -1122,7 +1121,7 @@ function App() {
                       onChange={tumunuSecVeyaKaldir}
                       checked={
                         filtrelenmisTumListe.filter((item) =>
-                          ilgiliAsamadaOnaylayabilir(item),
+                          ilgiliAsamadaOnaylayabilir(item)
                         ).length > 0 &&
                         filtrelenmisTumListe
                           .filter((item) => ilgiliAsamadaOnaylayabilir(item))
@@ -1141,42 +1140,38 @@ function App() {
               </thead>
 
               <tbody>
-                {filtrelenmisTumListe.map((item) => {
-                  const durum = getItemDurum(item);
+                {filtrelenmisTumListe.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ textAlign: "center", padding: "10px" }}>
+                      {ilgiliAsamadaOnaylayabilir(item) && (
+                        <input
+                          type="checkbox"
+                          checked={seciliMi(item.id)}
+                          onChange={() => toggleSelected(item.id)}
+                        />
+                      )}
+                    </td>
 
-                  return (
-                    <tr key={item.id}>
-                      <td style={{ textAlign: "center", padding: "10px" }}>
-                        {ilgiliAsamadaOnaylayabilir(item) && (
-                          <input
-                            type="checkbox"
-                            checked={seciliMi(item.id)}
-                            onChange={() => toggleSelected(item.id)}
-                          />
-                        )}
-                      </td>
-
-                      <td>{item.id}</td>
-                      <td>{item.personel_ad_soyad}</td>
-                      <td>
-                        {item.tutar} {item.para_birimi}
-                      </td>
-                      <td>{item.bolge || "-"}</td>
-                      <td>{getItemGider(item) || "-"}</td>
-                      <td>
-                        <span
-                          style={{
-                            ...styles.statusBadge,
-                            ...getDurumBadgeStyle(item.talep_durumu),
-                          }}
-                        >
-                          {getDurumText(item)}
-                        </span>
-                      </td>
-                      <td>{formatDateTR(getItemTarih(item))}</td>
-                    </tr>
-                  );
-                })}
+                    <td>{item.id}</td>
+                    <td>{item.personel_ad_soyad}</td>
+                    <td>
+                      {item.tutar} {item.para_birimi}
+                    </td>
+                    <td>{item.bolge || "-"}</td>
+                    <td>{getItemGider(item) || "-"}</td>
+                    <td>
+                      <span
+                        style={{
+                          ...styles.statusBadge,
+                          ...getDurumBadgeStyle(item.talep_durumu),
+                        }}
+                      >
+                        {getDurumText(item)}
+                      </span>
+                    </td>
+                    <td>{formatDateTR(getItemTarih(item))}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -1447,9 +1442,9 @@ function App() {
                       <span style={styles.label}>Onay Tarihi:</span>
                       <span>
                         {getItemOnayTarihi(item)
-                          ? new Date(
-                              getItemOnayTarihi(item),
-                            ).toLocaleDateString("tr-TR")
+                          ? new Date(getItemOnayTarihi(item)).toLocaleDateString(
+                              "tr-TR"
+                            )
                           : "-"}
                       </span>
                     </div>
@@ -1463,9 +1458,9 @@ function App() {
                       <span style={styles.label}>Ödeme Tarihi:</span>
                       <span>
                         {getItemOdemeTarihi(item)
-                          ? new Date(
-                              getItemOdemeTarihi(item),
-                            ).toLocaleDateString("tr-TR")
+                          ? new Date(getItemOdemeTarihi(item)).toLocaleDateString(
+                              "tr-TR"
+                            )
                           : "-"}
                       </span>
                     </div>
