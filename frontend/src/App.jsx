@@ -990,14 +990,8 @@ function App() {
 
           {hata ? <div style={styles.errorBox}>{hata}</div> : null}
 
-          <div style={styles.testBox}>
-            <b>Giriş yetkisi olan kullanıcılar:</b>
-            <p>murat.nabitoglu@simsektel.com</p>
-            <p>serdar.altinova@simsektel.com</p>
-            <p>nurcan.kus@simsektel.com</p>
-            <p>orhan.bedir@simsektel.com</p>
-            <p>duzgun.simsek@simsektel.com</p>
-            <p>muhasebe@simsektel.com</p>
+          <div style={{ textAlign: "center", marginTop: 10, color: "#6b7280" }}>
+            Yetkiniz yoksa sistem yöneticisi ile iletişime geçiniz.
           </div>
         </div>
       </div>
