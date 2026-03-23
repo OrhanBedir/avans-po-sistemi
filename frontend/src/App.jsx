@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
-const API = "https://avans-po-sistemi-production.up.railway.app"
+const API = "https://avans-po-sistemi-production.up.railway.app";
 
 const PERSONELLER = [
   {
@@ -234,6 +234,17 @@ function App() {
   const [selectedIds, setSelectedIds] = useState([]);
 
   const rol = user?.rol ?? "";
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const authHeaders = {
     "Content-Type": "application/json",
@@ -477,7 +488,11 @@ function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        setMesaj(data.error ? `${data.message} - ${data.error}` : (data.message || "Kayıt sırasında hata oluştu."));
+        setMesaj(
+          data.error
+            ? `${data.message} - ${data.error}`
+            : data.message || "Kayıt sırasında hata oluştu.",
+        );
         return;
       }
 
@@ -531,7 +546,7 @@ function App() {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
           },
-        }
+        },
       );
 
       const data = await res.json();
@@ -551,7 +566,7 @@ function App() {
 
   const toggleSelected = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -671,7 +686,7 @@ function App() {
 
   const filtreToplamTutar = filtrelenmisTumListe.reduce(
     (toplam, item) => toplam + Number(item.tutar || 0),
-    0
+    0,
   );
 
   const excelIndir = async () => {
@@ -879,7 +894,7 @@ function App() {
       });
 
       const durumColIndex = worksheet.columns.findIndex(
-        (c) => c.key === "talep_durumu"
+        (c) => c.key === "talep_durumu",
       );
 
       if (durumColIndex >= 0) {
@@ -992,7 +1007,13 @@ function App() {
   if (showTumTalepler) {
     return (
       <div style={styles.page}>
-        <div style={styles.topBar}>
+        <div
+          style={{
+            ...styles.topBar,
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
+          }}
+        >
           <div>
             <h1 style={styles.pageTitle}>Tüm Talepler</h1>
             <div style={styles.userInfo}>
@@ -1000,7 +1021,14 @@ function App() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              flexDirection: isMobile ? "column" : "row",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             <button
               type="button"
               style={{ ...styles.button, width: 160, background: "#2563eb" }}
@@ -1022,7 +1050,12 @@ function App() {
         <div style={styles.cardLarge}>
           <h2 style={styles.sectionTitle}>Filtreler</h2>
 
-          <div style={styles.filterGrid}>
+          <div
+            style={{
+              ...styles.filterGrid,
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
+            }}
+          >
             <select
               style={styles.input}
               value={filtrePersonel}
@@ -1051,7 +1084,13 @@ function App() {
             />
           </div>
 
-          <div style={styles.summaryBox}>
+          <div
+            style={{
+              ...styles.summaryBox,
+              flexDirection: isMobile ? "column" : "row",
+              gap: isMobile ? 10 : 24,
+            }}
+          >
             <div>
               <b>Kayıt Sayısı:</b> {filtrelenmisTumListe.length}
             </div>
@@ -1104,6 +1143,75 @@ function App() {
 
           {filtrelenmisTumListe.length === 0 ? (
             <div style={styles.emptyText}>Filtreye uygun kayıt yok.</div>
+          ) : isMobile ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {filtrelenmisTumListe.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "14px",
+                    padding: "14px",
+                    background: "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <b>#{item.id}</b>
+                    {ilgiliAsamadaOnaylayabilir(item) && (
+                      <input
+                        type="checkbox"
+                        checked={seciliMi(item.id)}
+                        onChange={() => toggleSelected(item.id)}
+                      />
+                    )}
+                  </div>
+
+                  <div style={styles.listRow}>
+                    <span style={styles.label}>Personel:</span>
+                    <span>{item.personel_ad_soyad}</span>
+                  </div>
+
+                  <div style={styles.listRow}>
+                    <span style={styles.label}>Tutar:</span>
+                    <span>
+                      {item.tutar} {item.para_birimi}
+                    </span>
+                  </div>
+
+                  <div style={styles.listRow}>
+                    <span style={styles.label}>Bölge:</span>
+                    <span>{item.bolge || "-"}</span>
+                  </div>
+
+                  <div style={styles.listRow}>
+                    <span style={styles.label}>Gider Türü:</span>
+                    <span>{getItemGider(item) || "-"}</span>
+                  </div>
+
+                  <div style={styles.listRow}>
+                    <span style={styles.label}>Tarih:</span>
+                    <span>{formatDateTR(getItemTarih(item))}</span>
+                  </div>
+
+                  <div style={{ marginTop: 10 }}>
+                    <span
+                      style={{
+                        ...styles.statusBadge,
+                        ...getDurumBadgeStyle(item.talep_durumu),
+                      }}
+                    >
+                      {getDurumText(item)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead
@@ -1121,7 +1229,7 @@ function App() {
                       onChange={tumunuSecVeyaKaldir}
                       checked={
                         filtrelenmisTumListe.filter((item) =>
-                          ilgiliAsamadaOnaylayabilir(item)
+                          ilgiliAsamadaOnaylayabilir(item),
                         ).length > 0 &&
                         filtrelenmisTumListe
                           .filter((item) => ilgiliAsamadaOnaylayabilir(item))
@@ -1182,7 +1290,13 @@ function App() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.topBar}>
+      <div
+        style={{
+          ...styles.topBar,
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+        }}
+      >
         <div>
           <h1 style={styles.pageTitle}>Avans Sistemi</h1>
           <div style={styles.userInfo}>
@@ -1190,7 +1304,14 @@ function App() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexDirection: isMobile ? "column" : "row",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
           {tumListeyiGorebilir && (
             <button
               type="button"
@@ -1211,7 +1332,12 @@ function App() {
         </div>
       </div>
 
-      <div style={styles.mainGrid}>
+      <div
+        style={{
+          ...styles.mainGrid,
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1.4fr",
+        }}
+      >
         {talepAcabilir && (
           <div style={styles.cardLarge}>
             <h2 style={styles.sectionTitle}>Avans Ekle</h2>
@@ -1442,9 +1568,9 @@ function App() {
                       <span style={styles.label}>Onay Tarihi:</span>
                       <span>
                         {getItemOnayTarihi(item)
-                          ? new Date(getItemOnayTarihi(item)).toLocaleDateString(
-                              "tr-TR"
-                            )
+                          ? new Date(
+                              getItemOnayTarihi(item),
+                            ).toLocaleDateString("tr-TR")
                           : "-"}
                       </span>
                     </div>
@@ -1458,9 +1584,9 @@ function App() {
                       <span style={styles.label}>Ödeme Tarihi:</span>
                       <span>
                         {getItemOdemeTarihi(item)
-                          ? new Date(getItemOdemeTarihi(item)).toLocaleDateString(
-                              "tr-TR"
-                            )
+                          ? new Date(
+                              getItemOdemeTarihi(item),
+                            ).toLocaleDateString("tr-TR")
                           : "-"}
                       </span>
                     </div>
@@ -1636,7 +1762,7 @@ const styles = {
   page: {
     minHeight: "100vh",
     background: "#f3f4f6",
-    padding: "32px",
+    padding: "16px",
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
   },
@@ -1647,7 +1773,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "20px",
+    gap: "16px",
   },
 
   mainGrid: {
@@ -1655,7 +1781,7 @@ const styles = {
     margin: "0 auto",
     display: "grid",
     gridTemplateColumns: "1fr 1.4fr",
-    gap: "24px",
+    gap: "16px",
   },
 
   card: {
@@ -1671,8 +1797,8 @@ const styles = {
 
   cardLarge: {
     background: "white",
-    padding: "28px",
-    borderRadius: "24px",
+    padding: "20px",
+    borderRadius: "20px",
     boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
     border: "1px solid #E5E7EB",
   },
@@ -1685,15 +1811,15 @@ const styles = {
 
   pageTitle: {
     margin: 0,
-    fontSize: "30px",
+    fontSize: "22px",
     color: "#111827",
     fontWeight: 800,
   },
 
   sectionTitle: {
     marginTop: 0,
-    marginBottom: "18px",
-    fontSize: "22px",
+    marginBottom: "16px",
+    fontSize: "18px",
     color: "#111827",
     fontWeight: 800,
     textAlign: "center",
@@ -1720,6 +1846,7 @@ const styles = {
     boxSizing: "border-box",
     outline: "none",
     background: "white",
+    minHeight: "48px",
   },
 
   readonlyInput: {
@@ -1732,11 +1859,12 @@ const styles = {
     outline: "none",
     background: "#f9fafb",
     color: "#374151",
+    minHeight: "48px",
   },
 
   textarea: {
     width: "100%",
-    minHeight: "90px",
+    minHeight: "100px",
     padding: "14px 16px",
     borderRadius: "12px",
     border: "1px solid #d1d5db",
@@ -1843,8 +1971,9 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    padding: "4px 0",
+    padding: "6px 0",
     fontSize: "14px",
+    flexWrap: "wrap",
   },
 
   label: {
