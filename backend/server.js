@@ -435,16 +435,7 @@ app.post("/api/avanslar", async (req, res) => {
   }
 });
 
-// deneme silinecek=========================
-app.get("/reset-avanslar", async (req, res) => {
-  try {
-    await pool.query("TRUNCATE TABLE avanslar RESTART IDENTITY;");
-    res.send("Avans tablosu sifirlandi");
-  } catch (err) {
-    console.error("RESET ERROR:", err);
-    res.status(500).send(err.message);
-  }
-});
+
 
 
 // AVANS LİSTE
