@@ -1684,9 +1684,11 @@ const styles = {
   loginTitle: {
     margin: 0,
     marginBottom: "10px",
-    fontSize: "48px",
+    fontSize: "clamp(32px, 8vw, 48px)",
+    lineHeight: 1,
     textAlign: "center",
     color: "#111827",
+    wordBreak: "break-word",
   },
 
   loginSubtitle: {

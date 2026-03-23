@@ -123,7 +123,7 @@ function generateToken(user) {
     process.env.JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRES_IN || "1d",
-    }
+    },
   );
 }
 
@@ -435,12 +435,8 @@ app.post("/api/avanslar", async (req, res) => {
   }
 });
 
-
-
-
 // AVANS LİSTE
 // =========================
-
 
 app.get("/avanslar", async (req, res) => {
   try {
@@ -516,7 +512,7 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
       } else if (
         avans.talep_durumu === "PROJE_MUDURU_ONAY" &&
@@ -532,7 +528,7 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
       } else if (
         avans.talep_durumu === "DIREKTOR_ONAY" &&
@@ -548,7 +544,7 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
       } else if (avans.talep_durumu === "MUHASEBE_ONAY" && rol === "MUHASEBE") {
         result = await pool.query(
@@ -561,7 +557,7 @@ app.put("/avanslar/toplu-onay", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
       } else {
         atlananlar.push({
@@ -623,7 +619,7 @@ app.put("/avanslar/:id", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -642,7 +638,7 @@ app.put("/avanslar/:id", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -658,7 +654,7 @@ app.put("/avanslar/:id", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -674,7 +670,7 @@ app.put("/avanslar/:id", async (req, res) => {
                updated_at = NOW()
            WHERE id = $2
            RETURNING *`,
-          [username, id]
+          [username, id],
         );
         return res.json({ message: "Güncellendi", data: result.rows[0] });
       }
@@ -701,7 +697,7 @@ app.put("/avanslar/:id", async (req, res) => {
              updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
-        [id]
+        [id],
       );
 
       return res.json({ message: "Ödeme yapıldı", data: result.rows[0] });
@@ -717,7 +713,7 @@ app.put("/avanslar/:id", async (req, res) => {
              updated_at = NOW()
          WHERE id = $2
          RETURNING *`,
-        [username, id]
+        [username, id],
       );
 
       return res.json({ message: "Güncellendi", data: result.rows[0] });
